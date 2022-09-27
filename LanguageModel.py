@@ -5,23 +5,25 @@ with open('openai_secret_key.txt') as f:
 openai.api_key = openai_secret_key
 
 
-def invoke_model(prompt):
+def invoke_model(prompt, model="text-davinci-002", temperature=0.7, max_tokens=256, top_p=1, frequency_penalty=0,
+                 presence_penalty=0):
     """
     takes the given prompt and returns the output provided from open-ai's model.
     :param prompt: some text (with additional few shot)
     :return: the entire response with the textual model's return value
     """
     response = openai.Completion.create(
-        model="text-davinci-002",
+        model=model,
         prompt=prompt,
-        temperature=0.7,
-        max_tokens=256,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0
+        temperature=temperature,
+        max_tokens=max_tokens,
+        top_p=top_p,
+        frequency_penalty=frequency_penalty,
+        presence_penalty=presence_penalty
     )
     actual_return = response.choices[0].text
-    print(actual_return)
+    if response['usage']['prompt_tokens'] > max_tokens:
+        print("<Warning>: exceeding max tokens allowed")
     return response, actual_return
 
 
@@ -37,9 +39,10 @@ def merge_text_with_two_shot(txt):
 
 
 if __name__ == '__main__':
-    txt = "On the quiet and green Elimelech Street in Ramat Gan, a 3-room apartment of 80 square meters," \
+    txt = "Elimelech Street in Ramat Gan, 3.5-room apartment of 80 sqm," \
           " on the ground floor surrounded by greenery. NIS 5,800, housing committee 100, property tax 640." \
           " contact 0502666935"
     prompt = merge_text_with_two_shot(txt)
-    invoke_model(prompt)
-    # print(prompt)
+    res, ret = invoke_model(prompt)
+    print(ret)
+
