@@ -1,5 +1,6 @@
 import json
 from typing import List, Dict, Tuple
+import random
 
 
 def load_labels_from_jsonl(jsonl_path='all.jsonl') -> List[Tuple[Dict, str]]:
@@ -27,8 +28,22 @@ def load_labels_from_jsonl(jsonl_path='all.jsonl') -> List[Tuple[Dict, str]]:
     return all_labels
 
 
+def train_test_split(labels_arr: List[Tuple[Dict, str]],
+                     split_ratio: float = 0.75) -> Tuple[List[Tuple[Dict, str]], List[Tuple[Dict, str]]]:
+    """
+    splits the labels array to two arrays
+    :param labels_arr: a list of labels
+    :param split_ratio: the percentage of the data that should be considered train
+    :return:
+    """
+    split_index = int(len(labels_arr) * split_ratio)
+    random.shuffle(labels_arr)
+    train = labels_arr[:split_index]
+    test = labels_arr[split_index:]
+    return train, test
+
+
 if __name__ == '__main__':
     labels = load_labels_from_jsonl()
-    for l in labels:
-        print(l[1])
-        print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+    tr, te = train_test_split(labels)
+    x = 2
