@@ -4,9 +4,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import GPT2Tokenizer, GPT2LMHeadModel, AdamW, get_linear_schedule_with_warmup
 from Dataset import get_dataset
-import time
 
-# tokenizer = GPT2Tokenizer.from_pretrained('sberbank-ai/mGPT')
 
 # Accumulated batch size (since GPT2 is so big)
 # def pack_tensor(new_tensor, packed_tensor, max_seq_len):
@@ -54,13 +52,13 @@ def train(dataset, model, batch_size=16, epochs=5, lr=2e-5, warmup_steps=20, out
             loss = outputs[0]
             loss.backward()
 
-            if (accumulating_batch_count % batch_size) == 0:
-                optimizer.step()
-                scheduler.step()
-                optimizer.zero_grad()
-                model.zero_grad()
+            # if (accumulating_batch_count % batch_size) == 0:
+            optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad()
+            model.zero_grad()
 
-            accumulating_batch_count += 1
+            # accumulating_batch_count += 1
             input_tensor = None
         if save_model_on_epoch:
             torch.save(
@@ -72,7 +70,5 @@ def train(dataset, model, batch_size=16, epochs=5, lr=2e-5, warmup_steps=20, out
 
 if __name__ == '__main__':
     train_data, test_data = get_dataset()
-    start = time.time()
     model = GPT2LMHeadModel.from_pretrained('sberbank-ai/mGPT')
-    end = time.time()
     train(train_data, model)
