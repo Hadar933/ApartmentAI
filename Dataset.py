@@ -1,12 +1,16 @@
 import json
 from typing import List, Dict, Tuple
 import numpy as np
+import random
 import torch
 from torch.utils.data import Dataset
 from transformers import GPT2Tokenizer
 
+EOS_TOKEN = "<|endoftext|>"
+PYTORCH_TOKEN = "pt"  # use this with tokenizer to return a pytorch tensor
 
-def load_data_from_jsonl(jsonl_path='all.jsonl') -> Tuple[List[str], List[str]]:
+
+def load_data_from_jsonl(jsonl_path='all.jsonl') -> List[str]:
     """
     extracts all the relevant text and labels from the jsonl file
     :param jsonl_path: str path to the jsonl labels file
@@ -15,7 +19,6 @@ def load_data_from_jsonl(jsonl_path='all.jsonl') -> Tuple[List[str], List[str]]:
     with open(jsonl_path, 'r', encoding='utf8') as jf:
         jsonL_lst = list(jf)
     data = []
-    labels = []
     for jsonL_str in jsonL_lst:
         json_dict = json.loads(jsonL_str)
         item_text = json_dict['text']
@@ -26,56 +29,94 @@ def load_data_from_jsonl(jsonl_path='all.jsonl') -> Tuple[List[str], List[str]]:
             start_offset = entity['start_offset']
             end_offset = entity['end_offset']
             label_dict[label_name] = item_text[start_offset:end_offset]
-        string_output = str(label_dict).replace("\'", "")[1:-1]  # removing " ' " and " { ", " } "
-        data.append(item_text)
-        labels.append(string_output)
-    return data, labels
+        desired_output = str(label_dict).replace("\'", "")[1:-1]  # removing " ' " and " { ", " } "
+        concatenated_data = f"INPUT: {item_text}.\n OUTPUT: {desired_output}"
+        data.append(concatenated_data)
+    return data
 
 
-def train_test_split(data_arr: List[str], labels_arr: List[str],
-                     split_ratio: float = 0.75) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def train_test_split(data_arr: List[str], split_ratio: float = 0.75) -> Tuple[List[str], List[str]]:
     """
     splits the labels array to two arrays
-    :param data_arr: a list of texts
-    :param labels_arr: a list of labels
+    :param data_arr: a list of the text itself + the desired outputs
     :param split_ratio: the percentage of the data that should be considered train
+    :return: two lists of the splitted data
+    """
+    random.shuffle(data_arr)
+    split_index = int(len(data_arr) * split_ratio)
+    train, test = data_arr[:split_index], data_arr[split_index:]
+    return train, test
+
+
+# def _tokenize_a_list(tokenizer: GPT2Tokenizer, lst: np.ndarray, max_length: int) -> List[torch.Tensor]:
+#     tokens_arr = []
+#     for item in lst:
+#         encoder_input = f"{item[:max_length]}{EOS_TOKEN}"
+#         token = tokenizer.encode(encoder_input)
+#         tokens_arr.append(torch.tensor(token))
+#     return tokens_arr
+
+
+def _tokenize_data_and_labels(tokenizer: GPT2Tokenizer, data: List[str]) -> Dict[str, torch.Tensor]:
+    """
+
+    :param tokenizer:
+    :param data:
     :return:
     """
-    split_index = int(len(labels_arr) * split_ratio)
-    Xy = np.array([data_arr, labels_arr])
-    np.random.shuffle(np.transpose(Xy))  # shuffling the columns so the order of data-label is preserved
-    X_train, X_test = Xy[0, :split_index], Xy[0, split_index:]
-    y_train, y_test = Xy[1, :split_index], Xy[1, split_index:]
-    return X_train, y_train, X_test, y_test
+    # generating a token for the word "OUTPUT"
+    output_token = tokenizer(' OUTPUT', return_tensors=PYTORCH_TOKEN)['input_ids'][0][0]
 
+    # tokenizing all the provided data
+    encoded_data = tokenizer(data, padding=True, truncation=True, return_tensors=PYTORCH_TOKEN,
+                             return_attention_mask=True)
 
-def _tokenize_a_list(tokenizer: GPT2Tokenizer, lst, max_length) -> List[torch.Tensor]:
-    tokens_arr = []
-    for item in lst:
-        encoder_input = f"{item[:max_length]}<|endoftext|>"
-        token = tokenizer.encode(encoder_input)
-        tokens_arr.append(torch.tensor(token))
-    return tokens_arr
+    # extracting the location of the token OUTPUT from the encoded data
+    output_token_idxs = (encoded_data['input_ids'] == output_token).nonzero()
+
+    # we set the attention mask to 0 for all text after the "OUTPUT", since its what we want to predict
+    for idx, attn_mask in enumerate(encoded_data['attention_mask']):
+        attn_mask[output_token_idxs[idx][1]:] = 0
+
+    # we set everything that precedes the "OUTPUT:..." to -100. This is how we tell the model
+    # to ignore that part when calculating the loss, so the loss is only w.r.t the generated text ("OUTPUT" onwards)
+    tmp_labels = []
+    for idx, input_id in enumerate(encoded_data['input_ids']):
+        label = input_id.detach().clone()
+        label[:output_token_idxs[idx][1]] = -100
+        tmp_labels.append(label)
+
+    batch = {'input_ids': torch.stack([result for result in encoded_data['input_ids']]),
+             'attention_mask': torch.stack([result for result in encoded_data['attention_mask']]),
+             'labels': torch.stack([result for result in tmp_labels])}
+    return batch
 
 
 class ApartmentDataset(Dataset):
-    def __init__(self, data_arr: np.ndarray, labels_arr: np.ndarray, is_train: bool, max_length: int = 1024):
+    def __init__(self, data_arr: List[str], is_train: bool, max_length: int = 1024):
         self.tokenizer = GPT2Tokenizer.from_pretrained("sberbank-ai/mGPT")
-        self.X = data_arr
-        self.y = labels_arr
-        self.is_train = is_train
-        self.X_tokenized: List[torch.Tensor] = _tokenize_a_list(self.tokenizer, self.X, max_length)
-        self.y_tokenized: List[torch.Tensor] = _tokenize_a_list(self.tokenizer, self.y, max_length)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.data: List[str] = data_arr
+        self.tokenized_data: Dict[str, torch.Tensor] = _tokenize_data_and_labels(self.tokenizer, self.data)
+        self.is_train: bool = is_train
 
     def __getitem__(self, index):
-        return self.X_tokenized[index], self.y_tokenized[index]
+        """
+        :return: both the tokenized data and labels and the original text
+        """
+        return self.tokenized_data[index]
 
     def __len__(self):
         return len(self.y)
 
 
+def get_dataset():
+    data = load_data_from_jsonl()
+    train_arr, test_arr = train_test_split(data)
+    train_ds = ApartmentDataset(train_arr, True)
+    test_ds = ApartmentDataset(test_arr, False)
+    return train_ds, test_ds
+
+
 if __name__ == '__main__':
-    X, y = load_data_from_jsonl()
-    X_train, y_train, X_test, y_test = train_test_split(X, y)
-    train_ds = ApartmentDataset(X_train, y_train, True)
-    test_ds = ApartmentDataset(X_test, y_test, False)
+    trds, teds = get_dataset()
