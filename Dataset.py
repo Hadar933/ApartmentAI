@@ -10,7 +10,7 @@ EOS_TOKEN = "<|endoftext|>"
 PYTORCH_TOKEN = "pt"  # use this with tokenizer to return a pytorch tensor
 
 
-def load_data_from_jsonl(jsonl_path='all.jsonl') -> List[str]:
+def _load_data_from_jsonl(jsonl_path='all.jsonl') -> List[str]:
     """
     extracts all the relevant text and labels from the jsonl file
     :param jsonl_path: str path to the jsonl labels file
@@ -35,7 +35,7 @@ def load_data_from_jsonl(jsonl_path='all.jsonl') -> List[str]:
     return data
 
 
-def train_test_split(data_arr: List[str], split_ratio: float = 0.75) -> Tuple[List[str], List[str]]:
+def _train_test_split(data_arr: List[str], split_ratio: float = 0.75) -> Tuple[List[str], List[str]]:
     """
     splits the labels array to two arrays
     :param data_arr: a list of the text itself + the desired outputs
@@ -94,7 +94,7 @@ def _tokenize_data_and_labels(tokenizer: GPT2Tokenizer, data: List[str]) -> Dict
     return batch
 
 
-class ApartmentDataset(Dataset):
+class _ApartmentDataset(Dataset):
     def __init__(self, data_arr: List[str], is_train: bool):
         self.tokenizer = GPT2Tokenizer.from_pretrained("sberbank-ai/mGPT")
         self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -115,10 +115,10 @@ class ApartmentDataset(Dataset):
 
 
 def get_dataset():
-    data = load_data_from_jsonl()
-    train_arr, test_arr = train_test_split(data)
-    train_ds = ApartmentDataset(train_arr, True)
-    test_ds = ApartmentDataset(test_arr, False)
+    data = _load_data_from_jsonl()
+    train_arr, test_arr = _train_test_split(data)
+    train_ds = _ApartmentDataset(train_arr, True)
+    test_ds = _ApartmentDataset(test_arr, False)
     return train_ds, test_ds
 
 
