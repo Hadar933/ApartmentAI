@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import GPT2Tokenizer, GPT2LMHeadModel, AdamW, get_linear_schedule_with_warmup
 from Dataset import get_dataset
-
+import time
 
 # tokenizer = GPT2Tokenizer.from_pretrained('sberbank-ai/mGPT')
 
@@ -39,9 +39,10 @@ def train(dataset, model, batch_size=16, epochs=5, lr=2e-5, warmup_steps=20, out
 
         print(f"Training epoch {epoch}")
         print(loss)
-        for idx, (X, y) in tqdm(enumerate(train_dataloader)):
-            X = X.to(device)
-            y = y.to(device)
+        for idx, value in tqdm(enumerate(train_dataloader)):
+            input_ids = value['input_ids'].to(device)
+            attn_mask = value['attention_mask'].to(device)
+            labels = value['labels'].to(device)
             # (input_tensor, carry_on, remainder) = pack_tensor(entry, input_tensor, 768)
             #
             # if carry_on and idx != len(train_dataloader) - 1:
@@ -49,7 +50,7 @@ def train(dataset, model, batch_size=16, epochs=5, lr=2e-5, warmup_steps=20, out
 
             # input_tensor = input_tensor.to(device)
             # outputs = model(input_tensor, labels=input_tensor)
-            outputs = model(X, labels=y)
+            outputs = model(input_ids, attention_mask=attn_mask, labels=labels)
             loss = outputs[0]
             loss.backward()
 
@@ -71,6 +72,7 @@ def train(dataset, model, batch_size=16, epochs=5, lr=2e-5, warmup_steps=20, out
 
 if __name__ == '__main__':
     train_data, test_data = get_dataset()
+    start = time.time()
     model = GPT2LMHeadModel.from_pretrained('sberbank-ai/mGPT')
-
+    end = time.time()
     train(train_data, model)

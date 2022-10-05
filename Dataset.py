@@ -68,13 +68,15 @@ def _tokenize_data_and_labels(tokenizer: GPT2Tokenizer, data: List[str]) -> Dict
     output_token = tokenizer(' OUTPUT', return_tensors=PYTORCH_TOKEN)['input_ids'][0][0]
 
     # tokenizing all the provided data
-    encoded_data = tokenizer(data, padding=True, truncation=True, return_tensors=PYTORCH_TOKEN,
+    encoded_data = tokenizer(data, padding=True, truncation=True, max_length=1024, return_tensors=PYTORCH_TOKEN,
                              return_attention_mask=True)
 
-    # extracting the location of the token OUTPUT from the encoded data
+    # extracting the location of the token "OUTPUT" from the encoded data
     output_token_idxs = (encoded_data['input_ids'] == output_token).nonzero()
 
-    # we set the attention mask to 0 for all text after the "OUTPUT", since its what we want to predict
+    # we set the attention mask to 0 for all text after the "OUTPUT", since its what we want to predict.
+    # This is how we tell the model to avoid that section when prediction, so it predicts only based on the test
+    # that precedes the "OUTPUT" token.
     for idx, attn_mask in enumerate(encoded_data['attention_mask']):
         attn_mask[output_token_idxs[idx][1]:] = 0
 
@@ -93,7 +95,7 @@ def _tokenize_data_and_labels(tokenizer: GPT2Tokenizer, data: List[str]) -> Dict
 
 
 class ApartmentDataset(Dataset):
-    def __init__(self, data_arr: List[str], is_train: bool, max_length: int = 1024):
+    def __init__(self, data_arr: List[str], is_train: bool):
         self.tokenizer = GPT2Tokenizer.from_pretrained("sberbank-ai/mGPT")
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.data: List[str] = data_arr
@@ -104,10 +106,12 @@ class ApartmentDataset(Dataset):
         """
         :return: both the tokenized data and labels and the original text
         """
-        return self.tokenized_data[index]
+        return {'input_ids': self.tokenized_data['input_ids'][index],
+                'attention_mask': self.tokenized_data['attention_mask'][index],
+                'labels': self.tokenized_data['labels'][index]}
 
     def __len__(self):
-        return len(self.y)
+        return len(self.data)
 
 
 def get_dataset():
