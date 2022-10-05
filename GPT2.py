@@ -82,11 +82,11 @@ def train(dataset, model, batch_size=16, epochs=5, lr=2e-5, warmup_steps=20, out
 
 if __name__ == '__main__':
     train_data, test_data = get_dataset()
-    # gpt2 = GPT2LMHeadModel.from_pretrained('sberbank-ai/mGPT')
-    import torch.nn as nn
-
-    conv = nn.Sequential(
-        nn.Conv2d(1, 20, 5),
-        nn.ReLU()
-    )
-    train(train_data, conv)
+    gpt2 = GPT2LMHeadModel.from_pretrained('sberbank-ai/mGPT')
+    # import torch.nn as nn
+    #
+    # conv = nn.Sequential(
+    #     nn.Conv2d(1, 20, 5),
+    #     nn.ReLU()
+    # )
+    train(train_data, gpt2)
