@@ -31,7 +31,15 @@ def pack_tensor(new_dict: torch.Tensor, packed_dict: torch.Tensor, max_seq_len: 
 
 
 def train(dataset, model, batch_size=16, epochs=5, lr=2e-5, warmup_steps=20, output_dir=".", output_prefix="wreckgar",
-          save_model_on_epoch=False):
+          save_model_on_epoch=False, freeze=True):
+    if freeze:
+        # Freeze transformer layers except the first and the last one. Do not freeze any layernorms
+        for n, p in model.named_parameters():
+            if 'transformer.h' in n:
+                layer_num = int(n.split('.')[2])
+                if 'ln_' not in n and 0 < layer_num < 23:
+                    p.requires_grad = False
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
     model.train()
@@ -59,7 +67,6 @@ def train(dataset, model, batch_size=16, epochs=5, lr=2e-5, warmup_steps=20, out
             input_ids = input_dict['input_ids'].to(device)
             attn_mask = input_dict['attention_mask'].to(device)
             labels = input_dict['labels'].to(device)
-            # outputs = model(input_tensor, labels=input_tensor)
             outputs = model(input_ids, attention_mask=attn_mask, labels=labels)
             loss = outputs[0]
             loss.backward()
@@ -70,7 +77,7 @@ def train(dataset, model, batch_size=16, epochs=5, lr=2e-5, warmup_steps=20, out
                 optimizer.zero_grad()
                 model.zero_grad()
 
-            # accumulating_batch_count += 1
+            accumulating_batch_count += 1
             input_dict = None
         if save_model_on_epoch:
             torch.save(
