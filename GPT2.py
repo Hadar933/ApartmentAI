@@ -2,6 +2,7 @@ from typing import List, Tuple
 
 import numpy as np
 import torch
+from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import GPT2LMHeadModel, AdamW, GPT2Tokenizer
@@ -129,10 +130,9 @@ def generate_output(trained_model: GPT2LMHeadModel, tokenizer: GPT2Tokenizer, da
         input_ids = tokenizer.encode(text, return_tensors="pt").to(device)
         out = trained_model.generate(
             input_ids,
-            min_length=100,
-            max_length=100,
-            eos_token_id=5,
-            pad_token=1,
+            # eos_token_id=5,
+            # pad_token=1,
+            max_new_tokens=1000,
             top_k=10,
             top_p=0.0,
             no_repeat_ngram_size=5
@@ -149,4 +149,5 @@ if __name__ == '__main__':
     gpt2 = GPT2LMHeadModel.from_pretrained('sberbank-ai/mGPT')
     model_train(train_data, gpt2)
     model_test(test_data, gpt2)
-    generate_output(gpt2, tknzr, te_text)
+
+    generate_output(gpt2, tknzr, [te_text[0]])
