@@ -121,13 +121,13 @@ def generate_output(trained_model: GPT2LMHeadModel, tokenizer: GPT2Tokenizer, da
     for item in data:
         splinted = item.split("OUTPUT: ")
         prompts.append(splinted[0])
-        labels.append(splinted[1])
+        labels.append(f"OUTPUT: {splinted[1]}")
     results = []
     for text in prompts:
         input_ids = tokenizer.encode(text, return_tensors="pt").to(device)
         out = trained_model.generate(
             input_ids,
-            # eos_token_id=5,
+            eos_token_id=5,
             # pad_token=1,
             max_new_tokens=1000,
             top_k=10,
@@ -147,8 +147,10 @@ if __name__ == '__main__':
     # gpt2 = nn.Sequential(
     #     nn.Conv2d(1, 2, 5)
     # )
+    generate_output(gpt2, tknzr, te_text)
     gpt2, train_loss = train_and_validate_model(train_data, te_text, gpt2, tknzr)
     # test_loss = model_test(test_data, gpt2)
 
     plt.plot(train_loss)
-    plt.show()
+    plt.savefig("train_loss")
+
