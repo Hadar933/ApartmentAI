@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from transformers import GPT2LMHeadModel, AdamW
+from transformers import GPT2LMHeadModel, AdamW, GPT2Tokenizer
 from Dataset import get_dataset, _ApartmentDataset
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -111,12 +111,39 @@ def model_test(test_dataset: _ApartmentDataset, model: GPT2LMHeadModel) -> List[
     return test_loss_arr
 
 
-def measure_performance(model: GPT2LMHeadModel, data: _ApartmentDataset):
-    pass
+def generate_output(trained_model: GPT2LMHeadModel, tokenizer: GPT2Tokenizer, data: List[str]):
+    """
+
+    :param trained_model:
+    :param tokenizer:
+    :param data:
+    :return:
+    """
+    prompts = [f"INPUT: {item}. OUTPUT: " for item in data]
+    results = []
+    for text in prompts:
+        input_ids = tokenizer.encode(text, return_tensors="pt").to(device)
+        out = trained_model.generate(
+            input_ids,
+            min_length=100,
+            max_length=100,
+            eos_token_id=5,
+            pad_token=1,
+            top_k=10,
+            top_p=0.0,
+            no_repeat_ngram_size=5
+        )
+        generated_text = list(map(tokenizer.decode, out))[0]
+        results.append(generated_text)
+    for generated_text in results:
+        print('---')
+        print(generated_text)
 
 
 if __name__ == '__main__':
-    train_data, test_data = get_dataset()
+    tr_text, te_text, train_data, test_data = get_dataset()
     gpt2 = GPT2LMHeadModel.from_pretrained('sberbank-ai/mGPT')
+    tknzr = GPT2Tokenizer.from_pretrained("sberbank-ai/mGPT")
     model_train(train_data, gpt2)
     model_test(test_data, gpt2)
+    generate_output(gpt2, tknzr, te_text)

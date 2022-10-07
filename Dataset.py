@@ -94,28 +94,19 @@ class _ApartmentDataset(Dataset):
         """
         :return: both the tokenized data and labels and the original text
         """
-        return {'input_ids': self.tokenized_data['input_ids'][index],
-                'attention_mask': self.tokenized_data['attention_mask'][index],
-                'labels': self.tokenized_data['labels'][index]}
+        return {
+            'input_ids': self.tokenized_data['input_ids'][index],
+            'attention_mask': self.tokenized_data['attention_mask'][index],
+            'labels': self.tokenized_data['labels'][index]
+        }
 
     def __len__(self):
         return len(self.data)
 
 
-def get_dataset():
-    """
-    the only function that should be used when initializing the datasets.
-    it performs:
-        (1) loads the data from the jsonL file
-        (2) splits the data to train and test
-        (3) returns a ApartmentDataset for each train/test
-    """
+def get_dataset() -> Tuple[List[str], List[str], _ApartmentDataset, _ApartmentDataset]:
     data = _load_data_from_jsonl()
     train_arr, test_arr = _train_test_split(data)
     train_ds = _ApartmentDataset(train_arr)
     test_ds = _ApartmentDataset(test_arr)
-    return train_ds, test_ds
-
-
-if __name__ == '__main__':
-    trds, teds = get_dataset()
+    return train_arr, test_arr, train_ds, test_ds
