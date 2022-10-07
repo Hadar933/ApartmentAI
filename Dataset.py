@@ -94,11 +94,13 @@ class _ApartmentDataset(Dataset):
         """
         :return: both the tokenized data and labels and the original text
         """
-        return {
+        txt_val = self.data[index]
+        dict_val = {
             'input_ids': self.tokenized_data['input_ids'][index],
             'attention_mask': self.tokenized_data['attention_mask'][index],
             'labels': self.tokenized_data['labels'][index]
         }
+        return txt_val, dict_val
 
     def __len__(self):
         return len(self.data)

@@ -2,6 +2,7 @@ from typing import List, Tuple
 
 import numpy as np
 import torch
+from matplotlib import pyplot as plt
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -44,44 +45,40 @@ def _freeze_weights(model: GPT2LMHeadModel):
                 p.requires_grad = False
 
 
-def model_train(train_dataset: _ApartmentDataset, model: GPT2LMHeadModel, epochs=5, lr=2e-5, freeze=True) -> Tuple[
-    GPT2LMHeadModel, List[str]]:
-    """
-    freezes most of the models weights and trains the model
-    :return: the trained model and a list of loss values
-    """
+def train_and_validate_model(train_dataset: _ApartmentDataset,
+                             test_list: List[str],
+                             model: GPT2LMHeadModel,
+                             tokenizer: GPT2Tokenizer,
+                             epochs=5, lr=2e-5, freeze=True) -> Tuple[GPT2LMHeadModel, List[float]]:
     if freeze: _freeze_weights(model)
-
     model = model.to(device)
     model.train()
     optimizer = AdamW(model.parameters(), lr=lr)
-
     train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-
-    train_loss_arr = []
-
+    epoch_loss_arr = []
     for epoch in range(epochs):
-        progressbar = tqdm(enumerate(train_dataloader))
-        print(f"Training epoch {epoch}")
+        train_one_epoch(epoch, epoch_loss_arr, model, optimizer, train_dataloader)
+    generate_output(model, tokenizer, test_list)
+    return model, epoch_loss_arr
 
-        for idx, entry_dict in progressbar:
-            input_ids = entry_dict['input_ids'].to(device)
-            attn_mask = entry_dict['attention_mask'].to(device)
-            labels = entry_dict['labels'].to(device)
 
-            outputs = model(input_ids, attention_mask=attn_mask, labels=labels)
-
-            train_loss = outputs[0]
-            train_loss.backward()
-            optimizer.step()
-            train_loss_arr.append(train_loss.detach().item())
-
-            optimizer.zero_grad()
-            model.zero_grad()
-
-            # print running average loss:
-            progressbar.set_description(f"Train Loss: {train_loss:.3f}")
-    return model, train_loss_arr
+def train_one_epoch(epoch, epoch_loss_arr, model, optimizer, train_dataloader):
+    epoch_loss = 0
+    progressbar = tqdm(enumerate(train_dataloader))
+    print(f"Training epoch {epoch}")
+    for idx, (txt_value, entry_dict) in progressbar:
+        input_ids = entry_dict['input_ids'].to(device)
+        attn_mask = entry_dict['attention_mask'].to(device)
+        labels = entry_dict['labels'].to(device)
+        outputs = model(input_ids, attention_mask=attn_mask, labels=labels)
+        batch_loss = outputs[0]
+        batch_loss.backward()
+        optimizer.step()
+        epoch_loss += batch_loss.detach().item()
+        optimizer.zero_grad()
+        model.zero_grad()
+        progressbar.set_description(f"Train Loss: {batch_loss:.3f}")
+    epoch_loss_arr.append(epoch_loss / len(train_dataloader))
 
 
 def model_test(test_dataset: _ApartmentDataset, model: GPT2LMHeadModel) -> List[float]:
@@ -98,7 +95,7 @@ def model_test(test_dataset: _ApartmentDataset, model: GPT2LMHeadModel) -> List[
 
     progressbar = tqdm(enumerate(test_dataloader))
 
-    for idx, entry_dict in progressbar:
+    for idx, (txt_value, entry_dict) in progressbar:
         input_ids = entry_dict['input_ids'].to(device)
         attn_mask = entry_dict['attention_mask'].to(device)
         labels = entry_dict['labels'].to(device)
@@ -147,7 +144,11 @@ def generate_output(trained_model: GPT2LMHeadModel, tokenizer: GPT2Tokenizer, da
 if __name__ == '__main__':
     tr_text, te_text, train_data, test_data, tknzr = get_dataset()
     gpt2 = GPT2LMHeadModel.from_pretrained('sberbank-ai/mGPT')
-    model_train(train_data, gpt2)
-    model_test(test_data, gpt2)
+    # gpt2 = nn.Sequential(
+    #     nn.Conv2d(1, 2, 5)
+    # )
+    gpt2, train_loss = train_and_validate_model(train_data, te_text, gpt2, tknzr)
+    # test_loss = model_test(test_data, gpt2)
 
-    generate_output(gpt2, tknzr, [te_text[0]])
+    plt.plot(train_loss)
+    plt.show()
