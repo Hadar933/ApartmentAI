@@ -90,7 +90,7 @@ def model_test(test_dataset, model):
         test_loss_arr.append(test_loss.detach().item())
 
         # print running average loss:
-        progressbar.set_description(f"Train Loss: {np.mean(test_loss[-10:]):.3f}")
+        progressbar.set_description(f"Test Loss: {np.mean(test_loss[-10:]):.3f}")
     return test_loss_arr
 
 
@@ -109,10 +109,5 @@ def _freeze_weights(model):
 if __name__ == '__main__':
     train_data, test_data = get_dataset()
     gpt2 = GPT2LMHeadModel.from_pretrained('sberbank-ai/mGPT')
-    # import torch.nn as nn
-    #
-    # conv = nn.Sequential(
-    #     nn.Conv2d(1, 20, 5),
-    #     nn.ReLU()
-    # )
     model_train(train_data, gpt2)
+    model_test(test_data, gpt2)
