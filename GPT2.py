@@ -119,7 +119,11 @@ def generate_output(trained_model: GPT2LMHeadModel, tokenizer: GPT2Tokenizer, da
     :param data:
     :return:
     """
-    prompts = [f"INPUT: {item}. OUTPUT: " for item in data]
+    prompts, labels = [], []
+    for item in data:
+        splinted = item.split("OUTPUT: ")
+        prompts.append(splinted[0])
+        labels.append(splinted[1])
     results = []
     for text in prompts:
         input_ids = tokenizer.encode(text, return_tensors="pt").to(device)
