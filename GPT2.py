@@ -144,6 +144,6 @@ if __name__ == '__main__':
     tr_text, te_text, train_data, test_data = get_dataset()
     gpt2 = GPT2LMHeadModel.from_pretrained('sberbank-ai/mGPT')
     tknzr = GPT2Tokenizer.from_pretrained("sberbank-ai/mGPT")
-    model_train(train_data, gpt2)
-    model_test(test_data, gpt2)
+    # model_train(train_data, gpt2)
+    # model_test(test_data, gpt2)
     generate_output(gpt2, tknzr, te_text)
