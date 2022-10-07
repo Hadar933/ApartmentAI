@@ -104,9 +104,9 @@ class _ApartmentDataset(Dataset):
         return len(self.data)
 
 
-def get_dataset() -> Tuple[List[str], List[str], _ApartmentDataset, _ApartmentDataset]:
+def get_dataset() -> Tuple[List[str], List[str], _ApartmentDataset, _ApartmentDataset, GPT2Tokenizer]:
     data = _load_data_from_jsonl()
     train_arr, test_arr = _train_test_split(data)
     train_ds = _ApartmentDataset(train_arr)
     test_ds = _ApartmentDataset(test_arr)
-    return train_arr, test_arr, train_ds, test_ds
+    return train_arr, test_arr, train_ds, test_ds, train_ds.tokenizer
