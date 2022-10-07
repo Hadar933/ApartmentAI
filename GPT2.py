@@ -61,7 +61,7 @@ def model_train(train_dataset, model, epochs=5, lr=2e-5, freeze=True):
             model.zero_grad()
 
             # print running average loss:
-            progressbar.set_description(f"Train Loss: {np.mean(train_loss[-10:]):.3f}")
+            progressbar.set_description(f"Train Loss: {train_loss:.3f}")
     return model, train_loss_arr
 
 
@@ -89,8 +89,7 @@ def model_test(test_dataset, model):
         test_loss = outputs[0]
         test_loss_arr.append(test_loss.detach().item())
 
-        # print running average loss:
-        progressbar.set_description(f"Test Loss: {np.mean(test_loss[-10:]):.3f}")
+        progressbar.set_description(f"Test Loss: {test:.3f}")
     return test_loss_arr
 
 
