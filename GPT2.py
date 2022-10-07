@@ -1,90 +1,105 @@
-import os
-from typing import Tuple
-
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import GPT2LMHeadModel, AdamW, get_linear_schedule_with_warmup
 from Dataset import get_dataset
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
 # Accumulated batch size (since GPT2 is so big)
-def pack_tensor(new_dict: torch.Tensor, packed_dict: torch.Tensor, max_seq_len: int):
-    """
+# def pack_tensor(new_dict: torch.Tensor, packed_dict: torch.Tensor, max_seq_len: int):
+#     """
+#
+#     :param new_dict:
+#     :param packed_dict:
+#     :param max_seq_len:
+#     :return:
+#     """
+#     if packed_dict is None:
+#         return new_dict, True, 0
+#     if new_dict['input_ids'].size()[1] + packed_dict['input_ids'].size()[1] > max_seq_len:
+#         return packed_dict, False, new_dict
+#     else:
+#         packed_dict['input_ids'] = torch.cat([new_dict['input_ids'], packed_dict['input_ids'][:, 1:]], dim=1)
+#         packed_dict['attention_mask'] = torch.cat([new_dict['attention_mask'], packed_dict['attention_mask'][:, 1:]],
+#                                                   dim=1)
+#         packed_dict['labels'] = torch.cat([new_dict['labels'], packed_dict['labels'][:, 1:]], dim=1)
+#
+#         return packed_dict, True, 0
 
-    :param new_dict:
-    :param packed_dict:
-    :param max_seq_len:
-    :return:
-    """
-    if packed_dict is None:
-        return new_dict, True, 0
-    if new_dict['input_ids'].size()[1] + packed_dict['input_ids'].size()[1] > max_seq_len:
-        return packed_dict, False, new_dict
-    else:
-        packed_dict['input_ids'] = torch.cat([new_dict['input_ids'], packed_dict['input_ids'][:, 1:]], dim=1)
-        packed_dict['attention_mask'] = torch.cat([new_dict['attention_mask'], packed_dict['attention_mask'][:, 1:]],
-                                                  dim=1)
-        packed_dict['labels'] = torch.cat([new_dict['labels'], packed_dict['labels'][:, 1:]], dim=1)
 
-        return packed_dict, True, 0
+def model_train(train_dataset, model, epochs=5, lr=2e-5, freeze=True):
+    if freeze: _freeze_weights(model)
 
-
-def train(dataset, model, batch_size=16, epochs=5, lr=2e-5, warmup_steps=20, output_dir=".", output_prefix="wreckgar",
-          save_model_on_epoch=False, freeze=True):
-    if freeze:
-        # Freeze transformer layers except the first and the last one. Do not freeze any layernorms
-        for n, p in model.named_parameters():
-            if 'transformer.h' in n:
-                layer_num = int(n.split('.')[2])
-                if 'ln_' not in n and 0 < layer_num < 23:
-                    p.requires_grad = False
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
     model.train()
-
     optimizer = AdamW(model.parameters(), lr=lr)
-    scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=warmup_steps, num_training_steps=-1
-    )
 
-    train_dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
-    loss = 0
-    accumulating_batch_count = 0
-    input_dict = None
-    # input_tensor = torch.rand((1, 12))
+    train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+
+    train_loss_arr = []
+
     for epoch in range(epochs):
-
+        progressbar = tqdm(enumerate(train_dataloader))
         print(f"Training epoch {epoch}")
-        print(f"loss: {loss}.")
-        for idx, entry_dict in tqdm(enumerate(train_dataloader)):
-            input_dict, carry_on, remainder = pack_tensor(entry_dict, input_dict, 768)
 
-            if carry_on and idx != len(train_dataloader) - 1:
-                continue
+        for idx, entry_dict in progressbar:
+            input_ids = entry_dict['input_ids'].to(device)
+            attn_mask = entry_dict['attention_mask'].to(device)
+            labels = entry_dict['labels'].to(device)
 
-            input_ids = input_dict['input_ids'].to(device)
-            attn_mask = input_dict['attention_mask'].to(device)
-            labels = input_dict['labels'].to(device)
             outputs = model(input_ids, attention_mask=attn_mask, labels=labels)
-            loss = outputs[0]
-            loss.backward()
 
-            if (accumulating_batch_count % batch_size) == 0:
-                optimizer.step()
-                scheduler.step()
-                optimizer.zero_grad()
-                model.zero_grad()
+            train_loss = outputs[0]
+            train_loss.backward()
+            optimizer.step()
+            train_loss_arr.append(train_loss.detach().item())
 
-            accumulating_batch_count += 1
-            input_dict = None
-        if save_model_on_epoch:
-            torch.save(
-                model.state_dict(),
-                os.path.join(output_dir, f"{output_prefix}-{epoch}.pt"),
-            )
+            optimizer.zero_grad()
+            model.zero_grad()
+
+            # print running average loss:
+            progressbar.set_description(f"Train Loss: {np.mean(train_loss[-10:]):.3f}")
     return model
+
+
+def model_test(test_dataset, model):
+    model = model.to(device)
+    model.eval()
+
+    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True)
+
+    test_loss_arr = []
+
+    progressbar = tqdm(enumerate(test_dataloader))
+
+    for idx, entry_dict in progressbar:
+        input_ids = entry_dict['input_ids'].to(device)
+        attn_mask = entry_dict['attention_mask'].to(device)
+        labels = entry_dict['labels'].to(device)
+
+        outputs = model(input_ids, attention_mask=attn_mask, labels=labels)
+
+        test_loss = outputs[0]
+        test_loss_arr.append(test_loss.detach().item())
+
+        # print running average loss:
+        progressbar.set_description(f"Train Loss: {np.mean(test_loss[-10:]):.3f}")
+    return model
+
+
+def _freeze_weights(model):
+    """
+    Freezes transformer layers except the first and the last one. Does not freeze any layer-norms
+    :param model: a transformer gpt2 model
+    """
+    for n, p in model.named_parameters():
+        if 'transformer.h' in n:
+            layer_num = int(n.split('.')[2])
+            if 'ln_' not in n and 0 < layer_num < 23:
+                p.requires_grad = False
 
 
 if __name__ == '__main__':
@@ -96,4 +111,4 @@ if __name__ == '__main__':
     #     nn.Conv2d(1, 20, 5),
     #     nn.ReLU()
     # )
-    train(train_data, gpt2)
+    model_train(train_data, gpt2)

@@ -95,12 +95,11 @@ def _tokenize_data_and_labels(tokenizer: GPT2Tokenizer, data: List[str]) -> Dict
 
 
 class _ApartmentDataset(Dataset):
-    def __init__(self, data_arr: List[str], is_train: bool):
+    def __init__(self, data_arr: List[str]):
         self.tokenizer = GPT2Tokenizer.from_pretrained("sberbank-ai/mGPT")
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.data: List[str] = data_arr
         self.tokenized_data: Dict[str, torch.Tensor] = _tokenize_data_and_labels(self.tokenizer, self.data)
-        self.is_train: bool = is_train
 
     def __getitem__(self, index):
         """
@@ -117,8 +116,8 @@ class _ApartmentDataset(Dataset):
 def get_dataset():
     data = _load_data_from_jsonl()
     train_arr, test_arr = _train_test_split(data)
-    train_ds = _ApartmentDataset(train_arr, True)
-    test_ds = _ApartmentDataset(test_arr, False)
+    train_ds = _ApartmentDataset(train_arr)
+    test_ds = _ApartmentDataset(test_arr)
     return train_ds, test_ds
 
 
