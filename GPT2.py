@@ -62,10 +62,14 @@ def model_train(train_dataset, model, epochs=5, lr=2e-5, freeze=True):
 
             # print running average loss:
             progressbar.set_description(f"Train Loss: {np.mean(train_loss[-10:]):.3f}")
-    return model
+    return model, train_loss_arr
 
 
 def model_test(test_dataset, model):
+    """
+    tests the model after the training step
+    :return:
+    """
     model = model.to(device)
     model.eval()
 
@@ -87,7 +91,7 @@ def model_test(test_dataset, model):
 
         # print running average loss:
         progressbar.set_description(f"Train Loss: {np.mean(test_loss[-10:]):.3f}")
-    return model
+    return test_loss_arr
 
 
 def _freeze_weights(model):
