@@ -1,9 +1,11 @@
+from typing import List, Tuple
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from transformers import GPT2LMHeadModel, AdamW, get_linear_schedule_with_warmup
-from Dataset import get_dataset
+from transformers import GPT2LMHeadModel, AdamW
+from Dataset import get_dataset, _ApartmentDataset
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -29,8 +31,24 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 #
 #         return packed_dict, True, 0
 
+def _freeze_weights(model: GPT2LMHeadModel):
+    """
+    Freezes transformer layers except the first and the last one. Does not freeze any layer-norms
+    :param model: a transformer gpt2 model
+    """
+    for n, p in model.named_parameters():
+        if 'transformer.h' in n:
+            layer_num = int(n.split('.')[2])
+            if 'ln_' not in n and 0 < layer_num < 23:
+                p.requires_grad = False
 
-def model_train(train_dataset, model, epochs=5, lr=2e-5, freeze=True):
+
+def model_train(train_dataset: _ApartmentDataset, model: GPT2LMHeadModel, epochs=5, lr=2e-5, freeze=True) -> Tuple[
+    GPT2LMHeadModel, List[str]]:
+    """
+    freezes most of the models weights and trains the model
+    :return: the trained model and a list of loss values
+    """
     if freeze: _freeze_weights(model)
 
     model = model.to(device)
@@ -65,10 +83,10 @@ def model_train(train_dataset, model, epochs=5, lr=2e-5, freeze=True):
     return model, train_loss_arr
 
 
-def model_test(test_dataset, model):
+def model_test(test_dataset: _ApartmentDataset, model: GPT2LMHeadModel) -> List[float]:
     """
     tests the model after the training step
-    :return:
+    :return: the test loss array
     """
     model = model.to(device)
     model.eval()
@@ -89,20 +107,12 @@ def model_test(test_dataset, model):
         test_loss = outputs[0]
         test_loss_arr.append(test_loss.detach().item())
 
-        progressbar.set_description(f"Test Loss: {test:.3f}")
+        progressbar.set_description(f"Test Loss: {test_loss:.3f}")
     return test_loss_arr
 
 
-def _freeze_weights(model):
-    """
-    Freezes transformer layers except the first and the last one. Does not freeze any layer-norms
-    :param model: a transformer gpt2 model
-    """
-    for n, p in model.named_parameters():
-        if 'transformer.h' in n:
-            layer_num = int(n.split('.')[2])
-            if 'ln_' not in n and 0 < layer_num < 23:
-                p.requires_grad = False
+def measure_performance(model: GPT2LMHeadModel, data: _ApartmentDataset):
+    pass
 
 
 if __name__ == '__main__':

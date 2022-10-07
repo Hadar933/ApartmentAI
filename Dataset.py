@@ -1,12 +1,10 @@
-import json
-from typing import List, Dict, Tuple
-import numpy as np
-import random
 import torch
 from torch.utils.data import Dataset
 from transformers import GPT2Tokenizer
+import json
+import random
+from typing import List, Dict, Tuple
 
-EOS_TOKEN = "<|endoftext|>"
 PYTORCH_TOKEN = "pt"  # use this with tokenizer to return a pytorch tensor
 
 
@@ -14,7 +12,7 @@ def _load_data_from_jsonl(jsonl_path='all.jsonl') -> List[str]:
     """
     extracts all the relevant text and labels from the jsonl file
     :param jsonl_path: str path to the jsonl labels file
-    :return: two lists of text and label text
+    :return: a list of data text + label text
     """
     with open(jsonl_path, 'r', encoding='utf8') as jf:
         jsonL_lst = list(jf)
@@ -46,15 +44,6 @@ def _train_test_split(data_arr: List[str], split_ratio: float = 0.75) -> Tuple[L
     split_index = int(len(data_arr) * split_ratio)
     train, test = data_arr[:split_index], data_arr[split_index:]
     return train, test
-
-
-# def _tokenize_a_list(tokenizer: GPT2Tokenizer, lst: np.ndarray, max_length: int) -> List[torch.Tensor]:
-#     tokens_arr = []
-#     for item in lst:
-#         encoder_input = f"{item[:max_length]}{EOS_TOKEN}"
-#         token = tokenizer.encode(encoder_input)
-#         tokens_arr.append(torch.tensor(token))
-#     return tokens_arr
 
 
 def _tokenize_data_and_labels(tokenizer: GPT2Tokenizer, data: List[str]) -> Dict[str, torch.Tensor]:
@@ -114,6 +103,13 @@ class _ApartmentDataset(Dataset):
 
 
 def get_dataset():
+    """
+    the only function that should be used when initializing the datasets.
+    it performs:
+        (1) loads the data from the jsonL file
+        (2) splits the data to train and test
+        (3) returns a ApartmentDataset for each train/test
+    """
     data = _load_data_from_jsonl()
     train_arr, test_arr = _train_test_split(data)
     train_ds = _ApartmentDataset(train_arr)
