@@ -85,9 +85,11 @@ def _tokenize_data_and_labels(tokenizer: GPT2Tokenizer, data: List[str]) -> Dict
 
 class _ApartmentDataset(Dataset):
     def __init__(self, data_arr: List[str]):
+        with open('two_shot_example.txt', encoding='utf8') as f:
+            self.two_shot_example = "".join(f.readlines())
         self.tokenizer = GPT2Tokenizer.from_pretrained("sberbank-ai/mGPT")
         self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.data: List[str] = data_arr
+        self.data: List[str] = [self.two_shot_example + "\n\n" + item for item in data_arr]
         self.tokenized_data: Dict[str, torch.Tensor] = _tokenize_data_and_labels(self.tokenizer, self.data)
 
     def __getitem__(self, index):

@@ -1,7 +1,13 @@
-Input: for rent On Aliyah First St., Ramat Gan. In a quiet but central area. 3-room apartment, ventilated and bright, 2nd floor out of 4.No furniture. Price 4600, property tax for two months NIS 447. For details: Tammy- 0544850321
-Output: City: Ramat Gan, Street: Aliyah, Size: , Rooms: 3, Price: 4,600, Phone: 0544850321
+INPUT:
+*להשכרה ברמת גן!* דירת 2 חדרים משופצת חדשה!! מוארת, שקטה ובמיקום מרכזי ומנצח צמוד למרום נווה!! תאריך כניסה: 1.11.22 
+*מוצרי חשמל וריהוט קיים:* ארון קיר מקרר כיריים גז מיקרו מכונת כביסה + מייבש וגם כמובן 2 מזגנים!
+דמי שכירות: 3,800 שח (ללא תיווך!) לפרטים: 0547-236223
+OUTPUT:
+rooms: 2 ,size: ,address: ,price: 3,800 ,phone: 0547-236223.
 
-Input: 2-room apartment in Givatayim, about 35 m. Floor number 2 . On Herzl Street in an amazing location. Price 3700 including property tax, water. Entry date 27.10 -28 Apartment kept and maintained!
-Output: City: Givatayim, Street:  Herzl, Size: 35 square meters, Rooms: 2, Price: 3,700, Phone: 
-
-Input: 
+INPUT:
+להשכרה- יחידת דיור עם חדר אחד ליחיד במושב חגלה רחוב הכלנית 10. כ-25 מ"ר + חצר כניסה החל מה 1.9.22, 10 דק ממכלת רופין שכ"ד 2000 ₪ לחודש
+האותיות הקטנות: לא ניתן בע"ח
+לפרטים בפרטי או 0546909192
+OUTPUT:
+rooms: אחד ,size: 25 ,address: הכלנית 10 ,price: 2000 ,phone: 0546909192.
